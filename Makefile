@@ -1,0 +1,83 @@
+# ============================================================================
+# NYC Taxi Pipeline — Common Commands
+# ============================================================================
+# Usage: make <target>
+# Run `make help` to see all available targets.
+# ============================================================================
+
+.PHONY: help setup test lint terraform-init terraform-plan terraform-apply airflow-up airflow-down deploy-scripts
+
+help: ## Show this help
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
+		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+# ─── Setup ─────────────────────────────────────────────────────────────────
+setup: ## Install all dependencies
+	pip install -r requirements.txt
+	pip install -r requirements-dev.txt
+
+# ─── Testing ───────────────────────────────────────────────────────────────
+test: ## Run all unit tests
+	pytest tests/ -v --tb=short
+
+test-ingestion: ## Run ingestion tests only
+	pytest tests/test_ingestion.py -v
+
+test-spark: ## Run PySpark transformation tests (requires Java + PySpark)
+	pytest tests/test_transformations.py -v
+
+test-quality: ## Run data quality and DAG tests
+	pytest tests/test_quality_and_dag.py -v
+
+test-cov: ## Run tests with coverage report
+	pytest tests/ -v --cov=src --cov-report=html --cov-report=term
+
+# ─── Linting ───────────────────────────────────────────────────────────────
+lint: ## Run linter
+	ruff check src/ tests/
+
+lint-fix: ## Auto-fix linting issues
+	ruff check --fix src/ tests/
+
+format: ## Format code
+	ruff format src/ tests/
+
+# ─── Terraform ─────────────────────────────────────────────────────────────
+terraform-init: ## Initialize Terraform
+	cd terraform && terraform init
+
+terraform-plan: ## Preview Terraform changes
+	cd terraform && terraform plan
+
+terraform-apply: ## Apply Terraform changes (creates AWS resources)
+	cd terraform && terraform apply
+
+terraform-destroy: ## Destroy all Terraform resources
+	cd terraform && terraform destroy
+
+terraform-output: ## Show Terraform outputs (for .env file)
+	cd terraform && terraform output -json
+
+# ─── Airflow ───────────────────────────────────────────────────────────────
+airflow-up: ## Start local Airflow (Docker)
+	cd airflow && docker compose up -d
+
+airflow-down: ## Stop local Airflow
+	cd airflow && docker compose down
+
+airflow-logs: ## Tail Airflow scheduler logs
+	cd airflow && docker compose logs -f airflow-scheduler
+
+airflow-restart: ## Restart Airflow
+	cd airflow && docker compose restart
+
+# ─── Deployment ────────────────────────────────────────────────────────────
+deploy-scripts: ## Upload PySpark scripts to S3
+	@echo "Uploading PySpark scripts to S3..."
+	aws s3 sync src/transformation/ s3://$${SCRIPTS_BUCKET}/spark-scripts/ \
+		--exclude "__pycache__/*" --exclude "*.pyc" --exclude "__init__.py"
+	@echo "Done!"
+
+# ─── Manual Ingestion ─────────────────────────────────────────────────────
+ingest-latest: ## Manually ingest the latest available taxi data
+	python -m src.ingestion.nyc_tlc_ingestion --latest --include-green

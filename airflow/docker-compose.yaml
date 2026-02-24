@@ -1,0 +1,100 @@
+# ============================================================================
+# Local Airflow Environment
+# ============================================================================
+# Run with: docker compose up -d
+# Access Airflow UI at: http://localhost:8080 (admin/admin)
+#
+# This uses Airflow's official Docker image with LocalExecutor (no Celery
+# needed for a single-user dev setup — simpler and lighter).
+# ============================================================================
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth'
+    # ── Pipeline config (from Terraform outputs) ──
+    # Replace these with your actual values after running terraform apply
+    DATA_BUCKET: "${DATA_BUCKET:-nyc-taxi-pipeline-data-lake-dev}"
+    SCRIPTS_BUCKET: "${SCRIPTS_BUCKET:-nyc-taxi-pipeline-scripts-dev}"
+    EMR_APP_ID: "${EMR_APP_ID:-}"
+    EMR_EXECUTION_ROLE_ARN: "${EMR_EXECUTION_ROLE_ARN:-}"
+    GLUE_DB_BRONZE: "${GLUE_DB_BRONZE:-nyc_taxi_pipeline_bronze_dev}"
+    GLUE_DB_SILVER: "${GLUE_DB_SILVER:-nyc_taxi_pipeline_silver_dev}"
+    GLUE_DB_GOLD: "${GLUE_DB_GOLD:-nyc_taxi_pipeline_gold_dev}"
+    AWS_REGION: "${AWS_REGION:-us-east-1}"
+    # AWS credentials — mount your ~/.aws folder or set these
+    AWS_ACCESS_KEY_ID: "${AWS_ACCESS_KEY_ID:-}"
+    AWS_SECRET_ACCESS_KEY: "${AWS_SECRET_ACCESS_KEY:-}"
+    AWS_SESSION_TOKEN: "${AWS_SESSION_TOKEN:-}"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ../src:/opt/airflow/src
+    - airflow-logs:/opt/airflow/logs
+    # Mount AWS credentials (alternative to env vars)
+    - ${HOME}/.aws:/home/airflow/.aws:ro
+  depends_on:
+    postgres:
+      condition: service_healthy
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "airflow"]
+      interval: 10s
+      retries: 5
+      start_period: 5s
+    restart: always
+    ports:
+      - "5432:5432"
+
+  airflow-init:
+    <<: *airflow-common
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        airflow db init
+        airflow users create \
+          --username admin \
+          --password admin \
+          --firstname Admin \
+          --lastname User \
+          --role Admin \
+          --email admin@example.com || true
+    restart: "no"
+
+  airflow-webserver:
+    <<: *airflow-common
+    command: webserver
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
+
+  airflow-scheduler:
+    <<: *airflow-common
+    command: scheduler
+    restart: always
+
+volumes:
+  postgres-data:
+  airflow-logs:

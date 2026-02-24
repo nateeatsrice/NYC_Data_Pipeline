@@ -1,0 +1,11 @@
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+moto[s3]>=5.0.0
+
+# Linting
+ruff>=0.3.0
+
+# Airflow (for DAG validation tests)
+apache-airflow>=2.9.0
+apache-airflow-providers-amazon>=8.19.0
