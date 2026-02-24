@@ -1,0 +1,19 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is gitignored — never commit credentials.
+
+project_name = "nyc-taxi-pipeline"
+aws_region   = "us-east-1"
+environment  = "dev"
+
+# Optional: override auto-generated bucket names
+# data_bucket_name    = "my-custom-data-lake-bucket"
+# scripts_bucket_name = "my-custom-scripts-bucket"
+
+# EMR Serverless tuning (defaults are fine for taxi data)
+# emr_max_capacity_cpu    = "16"
+# emr_max_capacity_memory = "64 GB"
+# emr_idle_timeout        = 5
+
+tags = {
+  Owner = "your-name"
+}
