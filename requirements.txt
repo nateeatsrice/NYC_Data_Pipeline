@@ -1,0 +1,11 @@
+# Core dependencies
+boto3>=1.34.0
+requests>=2.31.0
+pandas>=2.1.0
+pyarrow>=14.0.0
+
+# PySpark (only needed for local testing — EMR Serverless has its own)
+# pyspark==3.5.1
+
+# Configuration
+python-dateutil>=2.8.0
