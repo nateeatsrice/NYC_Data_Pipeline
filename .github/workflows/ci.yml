@@ -1,0 +1,149 @@
+# ============================================================================
+# CI Pipeline
+# ============================================================================
+# Runs on every push and PR. Validates:
+# 1. Python code quality (linting with ruff)
+# 2. Unit tests (pytest with mocked AWS)
+# 3. Terraform validation (syntax + plan check)
+#
+# Uses uv for fast dependency installation (~10-20x faster than pip).
+# ============================================================================
+
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+  TERRAFORM_VERSION: "1.7.0"
+  UV_VERSION: "0.6"
+
+jobs:
+  # ─── Python Linting ──────────────────────────────────────────────────────
+  lint:
+    name: Lint Python
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Run ruff linter
+        run: uvx ruff check src/ tests/
+
+      - name: Run ruff formatter check
+        run: uvx ruff format --check src/ tests/
+
+  # ─── Unit Tests ──────────────────────────────────────────────────────────
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run tests (without PySpark)
+        run: |
+          uv run pytest tests/test_ingestion.py tests/test_quality_and_dag.py \
+            -v --tb=short -x
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: testing
+          AWS_SECRET_ACCESS_KEY: testing
+
+  # ─── PySpark Tests (separate because it needs Java) ─────────────────────
+  test-spark:
+    name: PySpark Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Set up Java (required for Spark)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install dependencies (including PySpark)
+        run: uv sync --group dev --extra spark
+
+      - name: Run PySpark tests
+        run: |
+          uv run pytest tests/test_transformations.py -v --tb=short -x
+        env:
+          AWS_DEFAULT_REGION: us-east-1
+          AWS_ACCESS_KEY_ID: testing
+          AWS_SECRET_ACCESS_KEY: testing
+
+  # ─── Lockfile Sync Check ────────────────────────────────────────────────
+  lockfile:
+    name: Check Lockfile
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Verify uv.lock is up to date
+        run: uv lock --check
+
+      - name: Verify requirements.lock matches uv.lock
+        run: |
+          uv export --no-dev --format requirements-txt > /tmp/requirements.lock
+          diff requirements.lock /tmp/requirements.lock || \
+            (echo "❌ requirements.lock is stale. Run: make lock" && exit 1)
+
+  # ─── Terraform Validation ───────────────────────────────────────────────
+  terraform:
+    name: Validate Terraform
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Format Check
+        working-directory: terraform
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Init
+        working-directory: terraform
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        working-directory: terraform
+        run: terraform validate
