@@ -1,0 +1,64 @@
+[project]
+name = "nyc-taxi-pipeline"
+version = "0.1.0"
+description = "Batch data pipeline: NYC taxi + weather → S3 data lake → feature tables"
+readme = "README.md"
+requires-python = ">=3.11"
+
+# Production dependencies (what runs in Airflow + local)
+dependencies = [
+    "boto3>=1.34.0",
+    "requests>=2.31.0",
+    "pandas>=2.1.0",
+    "pyarrow>=14.0.0",
+    "python-dateutil>=2.8.0",
+]
+
+[project.optional-dependencies]
+# Dev/test dependencies — install with: uv sync --group dev
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "moto[s3]>=5.0.0",
+    "ruff>=0.3.0",
+]
+# Airflow — separate group because it's heavy and only needed for DAG tests
+airflow = [
+    "apache-airflow>=2.9.0",
+    "apache-airflow-providers-amazon>=8.19.0",
+]
+# PySpark — only for local testing, EMR has its own
+spark = [
+    "pyspark==3.5.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "moto[s3]>=5.0.0",
+    "ruff>=0.3.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "E501",  # line length handled by formatter
+]
