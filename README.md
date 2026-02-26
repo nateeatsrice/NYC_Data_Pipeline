@@ -8,15 +8,15 @@ A production-style batch data engineering pipeline that ingests NYC TLC taxi tri
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Airflow (Local Docker)                       │
 │                                                                     │
-│  ┌───────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────────┐ │
+│  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────────────┐ │
 │  │ Determine │──▶│  Ingest  │──▶│  Quality │──▶│ Bronze → Silver  │ │
 │  │  Period   │   │  (Python)│   │  Checks  │   │ (EMR Serverless) │ │
-│  └───────────┘   └──────────┘   └──────────┘   └───────┬──────────┘ │
+│  └──────────┘   └──────────┘   └──────────┘   └───────┬──────────┘ │
 │                                                        │            │
-│   ┌──────────────────┐   ┌──────────┐   ┌──────────────▼──────────┐ │
-│   │  Quality Checks  │◀──│  Gold    │◀──│  Silver → Gold          │ │
-│   │  (Gold Layer)    │   │  Checks  │   │  (EMR Serverless)       │ │
-│   └──────────────────┘   └──────────┘   └─────────────────────────┘ │
+│  ┌──────────────────┐   ┌──────────┐   ┌──────────────▼──────────┐ │
+│  │  Quality Checks  │◀──│  Gold    │◀──│  Silver → Gold          │ │
+│  │  (Gold Layer)    │   │  Checks  │   │  (EMR Serverless)       │ │
+│  └──────────────────┘   └──────────┘   └─────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────┘
                                 │
                     ┌───────────▼───────────┐
@@ -67,6 +67,7 @@ Key columns: `trip_count`, `avg_distance`, `avg_fare`, `unique_destinations`, `t
 - **Terraform** >= 1.5 ([install](https://developer.hashicorp.com/terraform/install))
 - **Docker** & Docker Compose ([install](https://docs.docker.com/get-docker/))
 - **Python** 3.11+ ([install](https://www.python.org/downloads/))
+- **uv** ([install](https://docs.astral.sh/uv/getting-started/installation/))
 - **Java 17** (for local PySpark tests only)
 
 ## Quick Start
@@ -76,8 +77,12 @@ Key columns: `trip_count`, `avg_distance`, `avg_fare`, `unique_destinations`, `t
 ```bash
 git clone https://github.com/your-username/nyc-taxi-pipeline.git
 cd nyc-taxi-pipeline
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
+
+# Install production + dev dependencies (creates .venv automatically)
+make setup
+
+# Or with PySpark for local transformation testing
+make setup-spark
 ```
 
 ### 2. Deploy Infrastructure
@@ -158,47 +163,51 @@ df = wr.athena.read_sql_query(
 
 ```bash
 make help           # See all available commands
+make setup          # Install dependencies via uv
 make test           # Run all tests
 make lint           # Check code quality
 make format         # Auto-format code
 make test-cov       # Tests with coverage report
+make lock           # Re-resolve deps and update requirements.lock
+make check-lock     # Verify lockfiles are in sync (runs in CI)
 ```
 
 ## Project Structure
 
 ```
 nyc-taxi-pipeline/
-├── terraform/                  # Infrastructure as Code
-│   ├── main.tf                 # Provider configuration
-│   ├── variables.tf            # Input variables
-│   ├── outputs.tf              # Output values
-│   ├── s3.tf                   # S3 buckets (data lake)
-│   ├── iam.tf                  # IAM roles (least privilege)
-│   ├── emr_serverless.tf       # EMR Serverless app
-│   ├── glue.tf                 # Glue Data Catalog
-│   └── athena.tf               # Athena workgroup
+├── pyproject.toml                 # Dependencies & tool config (single source of truth)
+├── uv.lock                        # Pinned dependency lockfile (committed)
+├── requirements.lock              # Exported from uv.lock for Airflow Dockerfile
+├── terraform/                     # Infrastructure as Code
+│   ├── main.tf                    # Provider configuration
+│   ├── variables.tf               # Input variables
+│   ├── outputs.tf                 # Output values
+│   ├── s3.tf                      # S3 buckets (data lake)
+│   ├── iam.tf                     # IAM roles (least privilege)
+│   ├── emr_serverless.tf          # EMR Serverless app
+│   ├── glue.tf                    # Glue Data Catalog
+│   └── athena.tf                  # Athena workgroup
 ├── src/
-│   ├── config.py               # Central configuration
-│   ├── ingestion/              # Data download & upload to bronze
+│   ├── config.py                  # Central configuration
+│   ├── ingestion/                 # Data download & upload to bronze
 │   │   ├── nyc_tlc_ingestion.py
 │   │   └── noaa_weather_ingestion.py
-│   ├── transformation/         # PySpark jobs (run on EMR)
+│   ├── transformation/            # PySpark jobs (run on EMR)
 │   │   ├── bronze_to_silver_taxi.py
 │   │   ├── bronze_to_silver_weather.py
 │   │   └── silver_to_gold_features.py
-│   └── quality/                # Data quality validation
+│   └── quality/                   # Data quality validation
 │       └── data_quality_checks.py
 ├── airflow/
 │   ├── dags/
 │   │   └── nyc_taxi_pipeline_dag.py
 │   ├── docker-compose.yaml
-│   └── Dockerfile
-├── tests/                      # Pytest test suite
-├── scripts/                    # Helper scripts
-├── .github/workflows/ci.yml   # CI pipeline
-├── Makefile                    # Common commands
-├── requirements.txt            # Production dependencies
-└── requirements-dev.txt        # Dev/test dependencies
+│   └── Dockerfile                 # Uses requirements.lock for parity
+├── tests/                         # Pytest test suite
+├── scripts/                       # Helper scripts
+├── .github/workflows/ci.yml      # CI pipeline (uses uv)
+└── Makefile                       # Common commands (all use uv)
 ```
 
 ## Adding a New Data Source
