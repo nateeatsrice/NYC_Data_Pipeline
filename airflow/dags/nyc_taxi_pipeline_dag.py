@@ -186,7 +186,7 @@ with DAG(
     description="Monthly ETL: NYC taxi + weather → bronze → silver → gold",
     default_args=default_args,
     # Run on the 5th of each month at 6:00 AM UTC
-    schedule_interval="0 6 5 * *",
+    schedule="0 6 5 * *",
     start_date=datetime(2024, 6, 1),
     catchup=True,
     max_active_runs=1,  # Process one month at a time
