@@ -103,6 +103,33 @@ jobs:
           AWS_ACCESS_KEY_ID: testing
           AWS_SECRET_ACCESS_KEY: testing
 
+  # ─── Airflow DAG Validation ───────────────────────────────────────────────
+  test-dag:
+    name: DAG Validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: ${{ env.UV_VERSION }}
+
+      - name: Set up Python
+        run: uv python install ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies (including Airflow)
+        run: uv sync --group dev --extra airflow
+
+      - name: Run DAG tests
+        run: |
+          uv run pytest tests/test_quality_and_dag.py::TestAirflowDag \
+            -v --tb=short -x
+        env:
+          AWS_DEFAULT_REGION: us-east-2
+          AWS_ACCESS_KEY_ID: testing
+          AWS_SECRET_ACCESS_KEY: testing
+          
   # ─── Lockfile Sync Check ────────────────────────────────────────────────
   lockfile:
     name: Check Lockfile
