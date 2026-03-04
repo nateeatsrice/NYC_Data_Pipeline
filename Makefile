@@ -1,11 +1,3 @@
-# ============================================================================
-# NYC Taxi Pipeline — Common Commands
-# ============================================================================
-# Uses uv for environment management. Install uv: https://docs.astral.sh/uv/
-# Usage: make <target>
-# Run `make help` to see all available targets.
-# ============================================================================
-
 .PHONY: help setup lock test lint terraform-init terraform-plan terraform-apply airflow-up airflow-down deploy-scripts
 
 help: ## Show this help

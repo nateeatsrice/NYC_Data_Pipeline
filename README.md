@@ -33,12 +33,12 @@ A production-style batch data engineering pipeline that ingests NYC TLC taxi tri
                     │  └───────────────┘    │
                     └───────────┬───────────┘
                                 │
-              ┌─────────────────┼─────────────────┐
-              │                 │                   │
-     ┌────────▼──────┐  ┌──────▼───────┐  ┌───────▼───────┐
-     │  Glue Catalog │  │    Athena    │  │ Data Science  │
-     │  (Schema)     │  │   (SQL)      │  │  (Notebooks)  │
-     └───────────────┘  └──────────────┘  └───────────────┘
+              ┌─────────────────┼──────────────────┐
+              │                 │                  │
+     ┌────────▼──────┐   ┌──────▼───────┐  ┌───────▼───────┐
+     │  Glue Catalog │   │    Athena    │  │ Data Science  │
+     │  (Schema)     │   │   (SQL)      │  │  (Notebooks)  │
+     └───────────────┘   └──────────────┘  └───────────────┘
 ```
 
 ## Data Sources

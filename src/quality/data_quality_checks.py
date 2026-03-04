@@ -18,7 +18,6 @@ import logging
 import sys
 from dataclasses import dataclass
 from datetime import UTC
-from pathlib import Path
 
 import boto3
 
