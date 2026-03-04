@@ -8,16 +8,12 @@ Run with: pytest tests/test_transformations.py -v
 
 import os
 import sys
+
 import pytest
 
 # Check if PySpark is available
 try:
     from pyspark.sql import SparkSession
-    from pyspark.sql import functions as F
-    from pyspark.sql.types import (
-        StructType, StructField, StringType, IntegerType,
-        DoubleType, TimestampType,
-    )
     SPARK_AVAILABLE = True
 except ImportError:
     SPARK_AVAILABLE = False
@@ -33,8 +29,7 @@ def spark():
         pytest.skip("PySpark not installed")
 
     session = (
-        SparkSession.builder
-        .master("local[1]")
+        SparkSession.builder.master("local[1]")
         .appName("test")
         .config("spark.sql.shuffle.partitions", "1")
         .config("spark.ui.enabled", "false")
@@ -176,15 +171,25 @@ class TestBronzeToSilverWeather:
         from transformation.bronze_to_silver_weather import clean_weather
 
         data = [
-            {"date": "2024-12-15", "temp_avg_celsius": 5.0,
-             "temp_min_celsius": 2.0, "temp_max_celsius": 8.0,
-             "precip_total_mm": 0.0, "wind_avg_ms": 3.0,
-             "observation_count": 24},
+            {
+                "date": "2024-12-15",
+                "temp_avg_celsius": 5.0,
+                "temp_min_celsius": 2.0,
+                "temp_max_celsius": 8.0,
+                "precip_total_mm": 0.0,
+                "wind_avg_ms": 3.0,
+                "observation_count": 24,
+            },
             # Invalid: 100°C in NYC
-            {"date": "2024-12-16", "temp_avg_celsius": 100.0,
-             "temp_min_celsius": 95.0, "temp_max_celsius": 105.0,
-             "precip_total_mm": 0.0, "wind_avg_ms": 3.0,
-             "observation_count": 24},
+            {
+                "date": "2024-12-16",
+                "temp_avg_celsius": 100.0,
+                "temp_min_celsius": 95.0,
+                "temp_max_celsius": 105.0,
+                "precip_total_mm": 0.0,
+                "wind_avg_ms": 3.0,
+                "observation_count": 24,
+            },
         ]
 
         df = spark.createDataFrame(data)
@@ -196,10 +201,15 @@ class TestBronzeToSilverWeather:
         from transformation.bronze_to_silver_weather import clean_weather
 
         data = [
-            {"date": "2024-12-15", "temp_avg_celsius": 0.0,
-             "temp_min_celsius": -5.0, "temp_max_celsius": 5.0,
-             "precip_total_mm": 0.0, "wind_avg_ms": 3.0,
-             "observation_count": 24},
+            {
+                "date": "2024-12-15",
+                "temp_avg_celsius": 0.0,
+                "temp_min_celsius": -5.0,
+                "temp_max_celsius": 5.0,
+                "precip_total_mm": 0.0,
+                "wind_avg_ms": 3.0,
+                "observation_count": 24,
+            },
         ]
 
         df = spark.createDataFrame(data)
@@ -212,14 +222,24 @@ class TestBronzeToSilverWeather:
         from transformation.bronze_to_silver_weather import clean_weather
 
         data = [
-            {"date": "2024-12-15", "temp_avg_celsius": 5.0,
-             "temp_min_celsius": 2.0, "temp_max_celsius": 8.0,
-             "precip_total_mm": 12.5, "wind_avg_ms": 5.0,
-             "observation_count": 24},
-            {"date": "2024-12-16", "temp_avg_celsius": 5.0,
-             "temp_min_celsius": 2.0, "temp_max_celsius": 8.0,
-             "precip_total_mm": 0.0, "wind_avg_ms": 2.0,
-             "observation_count": 24},
+            {
+                "date": "2024-12-15",
+                "temp_avg_celsius": 5.0,
+                "temp_min_celsius": 2.0,
+                "temp_max_celsius": 8.0,
+                "precip_total_mm": 12.5,
+                "wind_avg_ms": 5.0,
+                "observation_count": 24,
+            },
+            {
+                "date": "2024-12-16",
+                "temp_avg_celsius": 5.0,
+                "temp_min_celsius": 2.0,
+                "temp_max_celsius": 8.0,
+                "precip_total_mm": 0.0,
+                "wind_avg_ms": 2.0,
+                "observation_count": 24,
+            },
         ]
 
         df = spark.createDataFrame(data)
